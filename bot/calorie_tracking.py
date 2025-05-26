@@ -7,6 +7,8 @@ active_food_type = None
 
 GET_GOAL = 1
 
+GET_INPUT = 1
+
 # Add calories
 async def get_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [InlineKeyboardButton(type.capitalize(), callback_data=f"type_{type}") for i, type in enumerate(food_data)]
@@ -67,6 +69,36 @@ async def food_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         save()
 
         await query.edit_message_text(f"Lisätty: {chosen_food} {food['calories']}kcal.")
+
+# Add a custom amount of calories
+async def free_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Kirjoita kalorit:")
+    return GET_INPUT
+
+async def get_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        calories = int(update.message.text.strip())
+        if calories <= 0:
+            raise ValueError("Kalorit eivät voi olla nolla tai negatiivinen.")
+        
+        user_id = str(update.message.from_user.id)
+        profile = user_data[user_id]
+
+        profile["calories"] += calories
+        save()
+
+        await update.message.reply_text(
+            f"Lisätty {calories}kcal.\n"
+            f"Syöty: {profile['calories']}kcal.\n"
+            f"Jäljellä: {profile['calorie_goal'] - profile['calories']}kcal."
+        )
+        return ConversationHandler.END
+    except ValueError as e:
+        if "Kalorit ei" in str(e):
+            await update.message.reply_text(f"Virheellinen syöte. {e}")
+        else:
+            await update.message.reply_text("Virheellinen syöte. Syötä kalorit:")
+        return GET_INPUT
 
 # Show todays consumed and remaining calories
 async def show_calories(update: Update, context: ContextTypes.DEFAULT_TYPE):
