@@ -7,7 +7,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
 from bot.save_and_load import save, user_data
-from bot.calorie_tracking import get_type, type_button_handler, food_button_handler
+from bot.calorie_tracking import get_type, type_button_handler, food_button_handler, show_calories, set_goal, get_goal, GET_GOAL
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -65,7 +65,18 @@ def main():
 
         app.add_handler(CommandHandler("add", get_type))
         app.add_handler(CallbackQueryHandler(type_button_handler, pattern="^type_"))
-        app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))        
+        app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))
+
+        app.add_handler(CommandHandler("show", show_calories))
+
+        goal_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("goal", set_goal)],
+            states={
+                GET_GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_goal)]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+        app.add_handler(goal_conv_handler)
 
         app.add_error_handler(error_handler)
 

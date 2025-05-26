@@ -3,6 +3,11 @@ from telegram.ext import ContextTypes, ConversationHandler
 from bot.save_and_load import save, save_foods, user_data, food_data
 
 
+active_food_type = None
+
+GET_GOAL = 1
+
+# Add calories
 async def get_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [InlineKeyboardButton(type.capitalize(), callback_data=f"type_{type}") for i, type in enumerate(food_data)]
     buttons.append(InlineKeyboardButton("Peruuta", callback_data="type_cancel"))
@@ -20,15 +25,16 @@ async def type_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("type_"):
-        type = str(data.split("_")[1])
-        await get_food(update, context, type)
+        global active_food_type
+        active_food_type = str(data.split("_")[1])
+        await get_food(update, context, active_food_type)
 
 async def get_food(update: Update, context: ContextTypes.DEFAULT_TYPE, type: str):
     query = update.callback_query
     await query.answer()
     data = query.data
 
-    buttons = [InlineKeyboardButton(food.capitalize(), callback_data=f"food_{i}") for i, food in enumerate(food_data[type])]
+    buttons = [InlineKeyboardButton(food.capitalize(), callback_data=f"food_{food}") for i, food in enumerate(food_data[type])]
     buttons.append(InlineKeyboardButton("Peruuta", callback_data="food_cancel"))
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
@@ -44,9 +50,56 @@ async def food_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("food_"):
-        index = int(data.split("_")[1])
-        if index < 0:
-            await query.edit_message_text("Virheellinen valinta.")
-            return ConversationHandler.END
+        global active_food_type
+        chosen_food = str(data.split("_")[1])
+        food = food_data[active_food_type][chosen_food]
+        calories = food["calories"]
+
+        user_id = str(query.from_user.id)
+        profile = user_data[user_id]
+        profile["calories"] += calories
+
+        profile["foods"].append({
+            "food_type": active_food_type,
+            "name": chosen_food,
+            "calories": calories
+        })
+        save()
+
+        await query.edit_message_text(f"Lisätty: {chosen_food} {food['calories']}kcal.")
+
+# Show todays consumed and remaining calories
+async def show_calories(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    profile = user_data[user_id]
+
+    await update.message.reply_text(
+        f"Tänään syöty: {profile['calories']}kcal\n"
+        f"Tänään jäljellä: {profile['calorie_goal'] - profile['calories']}kcal"
+    )
+
+# Set daily calorie goal
+async def set_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Kirjoita uusi päivittäinen kaloritavoite:")
+    return GET_GOAL
+
+async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        goal = int(update.message.text.strip())
+        if goal <= 0:
+            raise ValueError("Tavoite ei voi olla nolla tai negatiivinen.")
+        
+        user_id = str(update.message.from_user.id)
+        profile = user_data[user_id]
+
+        profile["calorie_goal"] = goal
+        save()
+
+        await update.message.reply_text(f"Uusi tavoite asetettu: {goal}kcal.")
+        return ConversationHandler.END
+    except ValueError as e:
+        if "Tavoite ei" in str(e):
+            await update.message.reply_text(f"Virheellinen syöte. {e}")
         else:
-            await query.edit_message_text("Lisätty")
+            await update.message.reply_text(f"Virheellinen syöte. Kirjoita uusi päivittäinen kaloritavoite:")
+        return GET_GOAL
