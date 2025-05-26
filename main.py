@@ -6,7 +6,8 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
-from bot.save_and_load import user_data, save
+from bot.save_and_load import save, user_data
+from bot.calorie_tracking import get_type, type_button_handler, food_button_handler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    if user_id in user_data:
+        await update.message.reply_text("Olet jo aloittanut botin käytön. Voit jatkaa komennolla: /add.")
+        return
 
     user_data[user_id] = {
         "name": update.message.from_user.first_name,
@@ -27,7 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "Heipat! Pidän kirjaa tämän päivän kaloreistasi.\n"
-        "Voit aloittaa komennolla: /add"
+        "Voit aloittaa komennolla: /add."
     )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -58,6 +62,10 @@ def main():
 
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("cancel", cancel))
+
+        app.add_handler(CommandHandler("add", get_type))
+        app.add_handler(CallbackQueryHandler(type_button_handler, pattern="^type_"))
+        app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))        
 
         app.add_error_handler(error_handler)
 
