@@ -1,7 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from bot.save_and_load import save, save_foods, user_data, food_data
-
+from bot.save_and_load import save, user_data, food_data
 
 active_food_type = None
 
@@ -10,9 +9,9 @@ GET_GOAL = 1
 GET_INPUT = 1
 
 # Add calories
-async def get_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def get_type_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [InlineKeyboardButton(type.capitalize(), callback_data=f"type_{type}") for i, type in enumerate(food_data)]
-    buttons.append(InlineKeyboardButton("Peruuta", callback_data="type_cancel"))
+    buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="type_cancel"))
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -29,15 +28,15 @@ async def type_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data.startswith("type_"):
         global active_food_type
         active_food_type = str(data.split("_")[1])
-        await get_food(update, context, active_food_type)
+        await get_food_menu(update, context, active_food_type)
 
-async def get_food(update: Update, context: ContextTypes.DEFAULT_TYPE, type: str):
+async def get_food_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, type: str):
     query = update.callback_query
     await query.answer()
     data = query.data
 
     buttons = [InlineKeyboardButton(food.capitalize(), callback_data=f"food_{food}") for i, food in enumerate(food_data[type])]
-    buttons.append(InlineKeyboardButton("Peruuta", callback_data="food_cancel"))
+    buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="food_cancel"))
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
     reply_markup = InlineKeyboardMarkup(keyboard)

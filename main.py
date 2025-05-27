@@ -7,7 +7,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
 from bot.save_and_load import save, user_data
-from bot.calorie_tracking import get_type, type_button_handler, food_button_handler, show_calories, set_goal, get_goal, GET_GOAL, free_input, get_input, GET_INPUT
+from bot.calorie_tracking import get_type_menu, type_button_handler, food_button_handler, show_calories, set_goal, get_goal, GET_GOAL, free_input, get_input, GET_INPUT
+from bot.foods import add_new_food_menu, new_food_button_handler, get_food, GET_FOOD
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -46,10 +47,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     update_str = update.to_dict() if isinstance(update, Update) else str(update)
     message = (
-        "An exception was raised while handling an update\n"
+        "An exception was raised while handling an update:\n"
         f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}</pre>\n\n"
-        f"<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n"
-        f"<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n"
         f"<pre>{html.escape(tb_string)}</pre>"
     )
 
@@ -63,7 +62,7 @@ def main():
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("cancel", cancel))
 
-        app.add_handler(CommandHandler("add", get_type))
+        app.add_handler(CommandHandler("add", get_type_menu))
         app.add_handler(CallbackQueryHandler(type_button_handler, pattern="^type_"))
         app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))
 
@@ -86,6 +85,15 @@ def main():
             fallbacks=[CommandHandler("cancel", cancel)]
         )
         app.add_handler(free_input_conv_handler)
+
+        new_food_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("add_food", add_new_food_menu), CallbackQueryHandler(new_food_button_handler, pattern="^new_")],
+            states={
+                GET_FOOD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_food)]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+        app.add_handler(new_food_conv_handler)
 
         app.add_error_handler(error_handler)
 
