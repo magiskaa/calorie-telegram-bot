@@ -55,19 +55,45 @@ async def food_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         chosen_food = str(data.split("_")[1])
         food = food_data[active_food_type][chosen_food]
         calories = food["calories"]
+        protein = food["protein"]
 
         user_id = str(query.from_user.id)
         profile = user_data[user_id]
         profile["calories"] += calories
+        profile["protein"] += protein
 
         profile["foods"].append({
             "food_type": active_food_type,
             "name": chosen_food,
-            "calories": calories
+            "calories": calories,
+            "protein": protein
         })
         save()
 
-        await query.edit_message_text(f"Lisätty: {chosen_food} {food['calories']}kcal.")
+        await query.edit_message_text(
+            f"Lisätty *{chosen_food}*: *{food['calories']}kcal*.\n\n"
+            f"Syöty: *{profile['calories']}kcal*\n"
+            f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
+            f"Proteiini: *{profile['protein']}g*", 
+            parse_mode="Markdown"
+        )
+
+# Add a food which has per_100 set
+async def add_per_100(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    per_100 = []
+    for i, type in enumerate(food_data):
+        for i, food in enumerate(food_data[type]):
+            if food_data[type][food]["per_100"] == 0:
+                continue
+            else:
+                per_100.append(food)
+
+    buttons = [InlineKeyboardButton(food.capitalize(), callback_data=f"type_{food}") for i, food in enumerate(per_100)]
+    buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="type_cancel"))
+    keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Valitse:", reply_markup=reply_markup)
 
 # Add a custom amount of calories
 async def free_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -87,9 +113,11 @@ async def get_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save()
 
         await update.message.reply_text(
-            f"Lisätty {calories}kcal.\n"
-            f"Syöty: {profile['calories']}kcal.\n"
-            f"Jäljellä: {profile['calorie_goal'] - profile['calories']}kcal."
+            f"Lisätty: *{calories}kcal*.\n\n"
+            f"Syöty: *{profile['calories']}kcal*\n"
+            f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
+            f"Proteiini: *{profile['protein']}g*", 
+            parse_mode="Markdown"
         )
         return ConversationHandler.END
     except ValueError as e:
@@ -105,8 +133,10 @@ async def show_calories(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = user_data[user_id]
 
     await update.message.reply_text(
-        f"Tänään syöty: {profile['calories']}kcal\n"
-        f"Tänään jäljellä: {profile['calorie_goal'] - profile['calories']}kcal"
+        f"Syöty: *{profile['calories']}kcal*\n"
+        f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
+        f"Proteiini: *{profile['protein']}g*", 
+        parse_mode="Markdown"
     )
 
 # Set daily calorie goal
@@ -123,10 +153,11 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = str(update.message.from_user.id)
         profile = user_data[user_id]
 
+        old_goal = profile["calorie_goal"]
         profile["calorie_goal"] = goal
         save()
 
-        await update.message.reply_text(f"Uusi tavoite asetettu: {goal}kcal.")
+        await update.message.reply_text(f"Tavoite päivitetty: {old_goal}kcal -> {goal}kcal.")
         return ConversationHandler.END
     except ValueError as e:
         if "Tavoite ei" in str(e):

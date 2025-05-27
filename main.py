@@ -7,8 +7,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
 from bot.save_and_load import save, user_data
-from bot.calorie_tracking import get_type_menu, type_button_handler, food_button_handler, show_calories, set_goal, get_goal, GET_GOAL, free_input, get_input, GET_INPUT
-from bot.foods import add_new_food_menu, new_food_button_handler, get_food, GET_FOOD
+from bot.calorie_tracking import get_type_menu, type_button_handler, food_button_handler, add_per_100, show_calories, set_goal, get_goal, free_input, get_input, GET_GOAL, GET_INPUT
+from bot.foods import add_new_food_menu, new_food_button_handler, get_food, edit_menu_type, edit_detail, edit_button_handler, GET_FOOD, EDIT_DETAIL
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -67,6 +67,8 @@ def main():
         app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))
 
         app.add_handler(CommandHandler("show", show_calories))
+        app.add_handler(CommandHandler("per_100", add_per_100))
+        
 
         goal_conv_handler = ConversationHandler(
             entry_points=[CommandHandler("goal", set_goal)],
@@ -94,6 +96,15 @@ def main():
             fallbacks=[CommandHandler("cancel", cancel)]
         )
         app.add_handler(new_food_conv_handler)
+
+        edit_food_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("edit_food", edit_menu_type), CallbackQueryHandler(edit_button_handler, pattern="^edit")],
+            states={
+                EDIT_DETAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_detail)]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+        app.add_handler(edit_food_conv_handler)
 
         app.add_error_handler(error_handler)
 
