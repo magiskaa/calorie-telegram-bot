@@ -7,7 +7,10 @@ from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
 from bot.save_and_load import save, user_data
-from bot.calorie_tracking import get_type_menu, type_button_handler, food_button_handler, add_per_100, show_calories, set_goal, get_goal, free_input, get_input, GET_GOAL, GET_INPUT
+from bot.calorie_tracking import (
+    get_type_menu, type_button_handler, food_button_handler, add_per_100, per_100_button_handler, get_per_100, show_calories, 
+    set_goal, get_goal, add_custom_amount, get_custom_amount, GET_GOAL, GET_INPUT, GET_PER_100
+)
 from bot.foods import add_new_food_menu, new_food_button_handler, get_food, edit_menu_type, edit_detail, edit_button_handler, GET_FOOD, EDIT_DETAIL
 
 logging.basicConfig(
@@ -39,6 +42,17 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Peruutettu")
     return ConversationHandler.END    
     
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    profile = user_data[user_id]
+
+    profile["calories"] = 0
+    profile["protein"] = 0
+    profile["foods"] = []
+    save()
+
+    await update.message.reply_text("Kalorit resetattu.")
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error("Exception while handling an update: ", exc_info=context.error)
 
@@ -60,6 +74,7 @@ def main():
         app = ApplicationBuilder().token(BOT_TOKEN).build()
 
         app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("reset", reset))
         app.add_handler(CommandHandler("cancel", cancel))
 
         app.add_handler(CommandHandler("add", get_type_menu))
@@ -67,8 +82,6 @@ def main():
         app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))
 
         app.add_handler(CommandHandler("show", show_calories))
-        app.add_handler(CommandHandler("per_100", add_per_100))
-        
 
         goal_conv_handler = ConversationHandler(
             entry_points=[CommandHandler("goal", set_goal)],
@@ -79,14 +92,14 @@ def main():
         )
         app.add_handler(goal_conv_handler)
 
-        free_input_conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("free_input", free_input)],
+        custom_amount_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("custom", add_custom_amount)],
             states={
-                GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_input)]
+                GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_custom_amount)]
             },
             fallbacks=[CommandHandler("cancel", cancel)]
         )
-        app.add_handler(free_input_conv_handler)
+        app.add_handler(custom_amount_conv_handler)
 
         new_food_conv_handler = ConversationHandler(
             entry_points=[CommandHandler("add_food", add_new_food_menu), CallbackQueryHandler(new_food_button_handler, pattern="^new_")],
@@ -105,6 +118,16 @@ def main():
             fallbacks=[CommandHandler("cancel", cancel)]
         )
         app.add_handler(edit_food_conv_handler)
+
+        add_per_100_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("per_100", add_per_100), CallbackQueryHandler(per_100_button_handler, pattern="^per100_")],
+            states={
+                GET_PER_100: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_per_100)]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+        app.add_handler(add_per_100_conv_handler)
+
 
         app.add_error_handler(error_handler)
 

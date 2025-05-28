@@ -1,10 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from bot.save_and_load import save, save_foods, user_data, food_data
-
-active_food_type = None
-active_food = None
-active_detail = None
+from bot.save_and_load import save_foods, food_data
 
 GET_FOOD = 1
 
@@ -28,33 +24,36 @@ async def new_food_button_handler(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("new_"):
-        global active_food_type
-        active_food_type = str(data.split("_")[1])
+        food_type = str(data.split("_")[1])
+        context.user_data["active_food_type"] = food_type
 
         await query.edit_message_text(
-            f"{active_food_type.capitalize()} valittu. "
-            "Kirjoita ruuan nimi, kalorit, kalorit per 100g ja proteiinin määrä:"
+            f"{food_type.capitalize()} valittu. "
+            "Kirjoita ruuan nimi, kalorit, kalorit per 100g, proteiinin määrä ja proteiini per 100g:"
         )
         return GET_FOOD
     
 async def get_food(update: Update, context: ContextTypes.DEFAULT_TYPE):
     food = update.message.text.strip()
-    name, calories, per_100, protein = food.split()
+    name, calories, per_100, protein, protein_per_100 = food.split()
 
-    global active_food_type
-    food_data[active_food_type][name] = {
+    food_type = context.user_data["active_food_type"]
+    food_data[food_type][name] = {
         "calories": int(calories),
-        "per_100": int(per_100),
-        "protein": int(protein)
+        "calories_per_100": int(per_100),
+        "protein": int(protein),
+        "protein_per_100": int(protein_per_100)
     }
     save_foods()
 
     await update.message.reply_text(
-        f"Lisätty kategoriaan {active_food_type}:\n"
-        f"Nimi: {name}\n"
-        f"Kalorit: {calories}kcal\n"
-        f"Per 100g: {per_100}kcal\n"
-        f"Proteiinia: {protein}g"
+        f"Lisätty kategoriaan *{food_type.capitalize()}*:\n\n"
+        f"Nimi: *{name.capitalize()}*\n"
+        f"Kalorit: *{calories}kcal*\n"
+        f"Per 100g: *{per_100}kcal*\n"
+        f"Proteiinia: *{protein}g*\n"
+        f"Per 100g: *{protein_per_100}g*",
+        parse_mode="Markdown"
     )
     return ConversationHandler.END
 
@@ -67,10 +66,11 @@ async def edit_menu_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Valitse:", reply_markup=reply_markup)
 
-async def edit_menu_food(update: Update, context: ContextTypes.DEFAULT_TYPE, type: str):
+async def edit_menu_food(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
+
+    type = context.user_data["active_food_type"]
 
     buttons = [InlineKeyboardButton(food.capitalize(), callback_data=f"editfood_{food}") for i, food in enumerate(food_data[type])]
     buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="editfood_cancel"))
@@ -79,10 +79,12 @@ async def edit_menu_food(update: Update, context: ContextTypes.DEFAULT_TYPE, typ
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text("Valitse:", reply_markup=reply_markup)
 
-async def edit_menu_details(update: Update, context: ContextTypes.DEFAULT_TYPE, type: str, food: str):
+async def edit_menu_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
+    
+    type = context.user_data["active_food_type"]
+    food = context.user_data["active_food"]
 
     buttons = [InlineKeyboardButton(detail.capitalize(), callback_data=f"editdetail_{detail}") for i, detail in enumerate(food_data[type][food])]
     buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="editdetail_cancel"))
@@ -96,8 +98,6 @@ async def edit_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     data = query.data
 
-    global active_food_type, active_food, active_detail
-
     # Cancel buttons
     if data in ("edittype_cancel", "editfood_cancel", "editdetail_cancel"):
         await query.edit_message_text("Peruutettu")
@@ -105,19 +105,22 @@ async def edit_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Edit type
     if data.startswith("edittype_"):
-        active_food_type = str(data.split("_")[1])
-        await edit_menu_food(update, context, active_food_type)
+        food_type = str(data.split("_")[1])
+        context.user_data["active_food_type"] = food_type
+        await edit_menu_food(update, context)
         return
 
     # Edit food
     if data.startswith("editfood_"):
-        active_food = str(data.split("_")[1])
-        await edit_menu_details(update, context, active_food_type, active_food)
+        food = str(data.split("_")[1])
+        context.user_data["active_food"] = food
+        await edit_menu_details(update, context)
         return
 
     # Edit detail
     if data.startswith("editdetail_"):
-        active_detail = str(data.split("_")[1])
+        detail = str(data.split("_")[1])
+        context.user_data["active_detail"] = detail
         await query.edit_message_text("Kirjoita uusi arvo:")
         return EDIT_DETAIL
 
@@ -127,18 +130,20 @@ async def edit_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_value <= 0:
             raise ValueError("Arvo ei voi olla nolla tai negatiivinen.")
         
-        global active_food_type, active_food, active_detail
+        type = context.user_data["active_food_type"]
+        food = context.user_data["active_food"]
+        detail = context.user_data["active_detail"]
 
-        old_value = food_data[active_food_type][active_food][active_detail]
-        food_data[active_food_type][active_food][active_detail] = new_value
+        old_value = food_data[type][food][detail]
+        food_data[type][food][detail] = new_value
         save_foods()
 
-        if active_detail == "protein":
+        if detail == "protein" or detail == "protein_per_100":
             text = "g"
         else:
             text = "kcal"
 
-        await update.message.reply_text(f"{active_food.capitalize()} | {active_detail}: {old_value}{text} -> {new_value}{text}")
+        await update.message.reply_text(f"{food.capitalize()} | {detail}: {old_value}{text} -> {new_value}{text}")
         return ConversationHandler.END
     except ValueError as e:
         if "Arvo ei" in str(e):
