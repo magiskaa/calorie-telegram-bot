@@ -11,7 +11,10 @@ from bot.calorie_tracking import (
     get_type_menu, type_button_handler, food_button_handler, add_per_100, per_100_button_handler, get_per_100, show_calories, 
     set_goal, get_goal, add_custom_amount, get_custom_amount, GET_GOAL, GET_INPUT, GET_PER_100
 )
-from bot.foods import add_new_food_menu, new_food_button_handler, get_food, edit_menu_type, edit_detail, edit_button_handler, GET_FOOD, EDIT_DETAIL
+from bot.foods import (
+    add_new_food_menu, new_food_button_handler, get_food, edit_menu_type, edit_detail, edit_button_handler, 
+    food_list, todays_foods, GET_FOOD, EDIT_DETAIL
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -82,6 +85,10 @@ def main():
         app.add_handler(CallbackQueryHandler(food_button_handler, pattern="^food_"))
 
         app.add_handler(CommandHandler("show", show_calories))
+
+        app.add_handler(CommandHandler("food_list", food_list))
+
+        app.add_handler(CommandHandler("todays_foods", todays_foods))
 
         goal_conv_handler = ConversationHandler(
             entry_points=[CommandHandler("goal", set_goal)],

@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from bot.save_and_load import save_foods, food_data
+from bot.save_and_load import save_foods, food_data, user_data
 
 GET_FOOD = 1
 
@@ -150,3 +150,30 @@ async def edit_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Virheellinen syöte. {e}")
         else:
             await update.message.reply_text(f"Virheellinen syöte. Kirjoita uusi arvo:")
+
+# Show all available foods
+async def food_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = ""
+    for i, type in enumerate(food_data):
+        message += f"{type.capitalize()}:\n"
+        for i, food in enumerate(food_data[type]):
+            message += (
+                f"   - {food.capitalize()}:\n"
+                f"      ~ {food_data[type][food]['calories']}kcal, {food_data[type][food]['calories_per_100']}kcal, "
+                f"{food_data[type][food]['protein']}g, {food_data[type][food]['protein_per_100']}g\n"
+            )
+    
+    await update.message.reply_text(message)
+
+# Show all todays foods
+async def todays_foods(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    message = ""
+    foods = user_data[user_id]["foods"]
+    for i, food in enumerate(foods):
+        message += (
+            f"{foods[i]['name'].capitalize()}:\n"
+            f"   - {foods[i]['calories']}kcal, {foods[i]['protein']}g\n"
+        )
+        
+    await update.message.reply_text(message)
