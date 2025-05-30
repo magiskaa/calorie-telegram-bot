@@ -38,7 +38,7 @@ async def get_food(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name, calories, per_100, protein, protein_per_100 = food.split()
 
     food_type = context.user_data["active_food_type"]
-    food_data[food_type][name] = {
+    food_data[food_type][name.lower()] = {
         "calories": int(calories),
         "calories_per_100": int(per_100),
         "protein": float(protein),

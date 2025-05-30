@@ -165,7 +165,9 @@ async def add_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         message = update.message.text.strip()
-        calories, protein = message.split()
+        calories, protein = message.split()¨
+        calories = int(calories)
+        protein = float(protein)
         if calories <= 0:
             raise ValueError("Kalorit eivät voi olla nolla tai negatiivinen.")
         if protein < 0:
