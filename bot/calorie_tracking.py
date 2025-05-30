@@ -26,7 +26,7 @@ async def type_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("type_"):
-        food_type = str(data.split("_")[1])
+        food_type = str(data.split("_", 1)[1])
         context.user_data["active_food_type"] = food_type
         await get_food_menu(update, context)
 
@@ -53,7 +53,7 @@ async def food_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
     elif data.startswith("food_"):
         food_type = context.user_data["active_food_type"]
-        chosen_food = str(data.split("_")[1])
+        chosen_food = str(data.split("_", 1)[1])
         food_details = food_data[food_type][chosen_food]
         calories = food_details["calories"]
         protein = food_details["protein"]
@@ -106,7 +106,7 @@ async def per_100_button_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("per100_"):
-        _, type, food = data.split("_")
+        _, type, food = data.split("_", 2)
         context.user_data["per_100_selected"] = (type, food)
         await query.edit_message_text(f"Paljonko söit: *{food.capitalize()}*", parse_mode="Markdown")
         return GET_PER_100
@@ -176,6 +176,12 @@ async def get_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         profile["calories"] += calories
         profile["protein"] += protein
+
+        profile["foods"].append({
+            "name": "custom",
+            "calories": calories,
+            "protein": protein
+        })
         save()
 
         await update.message.reply_text(

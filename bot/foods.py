@@ -24,7 +24,7 @@ async def new_food_button_handler(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text("Peruutettu")
         return ConversationHandler.END
     elif data.startswith("new_"):
-        food_type = str(data.split("_")[1])
+        food_type = str(data.split("_", 1)[1])
         context.user_data["active_food_type"] = food_type
 
         await query.edit_message_text(
@@ -106,23 +106,23 @@ async def edit_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Edit type
     if data.startswith("edittype_"):
-        food_type = str(data.split("_")[1])
+        food_type = str(data.split("_", 1)[1])
         context.user_data["active_food_type"] = food_type
         await edit_menu_food(update, context)
         return
 
     # Edit food
     if data.startswith("editfood_"):
-        food = str(data.split("_")[1])
+        food = str(data.split("_", 1)[1])
         context.user_data["active_food"] = food
         await edit_menu_details(update, context)
         return
 
     # Edit detail
     if data.startswith("editdetail_"):
-        detail = str(data.split("_")[1])
+        detail = str(data.split("_", 1)[1])
         context.user_data["active_detail"] = detail
-        await query.edit_message_text("Kirjoita uusi arvo:")
+        await query.edit_message_text(f"Kirjoita uusi arvo ({detail}):")
         return EDIT_DETAIL
 
 async def edit_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
