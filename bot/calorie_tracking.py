@@ -71,7 +71,9 @@ async def food_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         save()
 
         await query.edit_message_text(
-            f"Lisätty *{chosen_food}*: *{calories}kcal*.\n\n"
+            f"Lisätty: *{chosen_food.capitalize()}*\n\n"
+            f"Kaloreita: *{calories}kcal*\n"
+            f"Proteiinia: *{protein}*g\n\n"
             f"Syöty: *{profile['calories']}kcal*\n"
             f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
             f"Proteiini: *{profile['protein']}g*", 
@@ -123,7 +125,7 @@ async def get_per_100(update: Update, context: ContextTypes.DEFAULT_TYPE):
         protein_per_100 = food_details["protein_per_100"]
 
         total_calories = int(calories_per_100 * amount)
-        total_protein = int(protein_per_100 * amount)
+        total_protein = round(float(protein_per_100 * amount), 1)
 
         user_id = str(update.message.from_user.id)
         profile = user_data[user_id]
@@ -157,23 +159,29 @@ async def get_per_100(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Add a custom amount of calories
 async def add_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Kirjoita kalorit:")
+    await update.message.reply_text("Kirjoita kalorit ja proteiini:")
     return GET_INPUT
 
 async def get_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        calories = int(update.message.text.strip())
+        message = update.message.text.strip()
+        calories, protein = message.split()
         if calories <= 0:
             raise ValueError("Kalorit eivät voi olla nolla tai negatiivinen.")
-        
+        if protein < 0:
+            raise ValueError("Proteiini ei voi olla negatiivinen.")
+
         user_id = str(update.message.from_user.id)
         profile = user_data[user_id]
 
         profile["calories"] += calories
+        profile["protein"] += protein
         save()
 
         await update.message.reply_text(
-            f"Lisätty: *{calories}kcal*.\n\n"
+            f"Lisätty: *Custom*\n\n"
+            f"Kaloreita: *{calories}kcal*\n"
+            f"Proteiinia: *{protein}g*\n\n"
             f"Syöty: *{profile['calories']}kcal*\n"
             f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
             f"Proteiini: *{profile['protein']}g*", 
@@ -181,7 +189,7 @@ async def get_custom_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
     except ValueError as e:
-        if "Kalorit ei" in str(e):
+        if "Kalorit ei" in str(e) or "Proteiini ei" in str(e):
             await update.message.reply_text(f"Virheellinen syöte. {e}")
         else:
             await update.message.reply_text("Virheellinen syöte. Syötä kalorit:")
@@ -195,7 +203,9 @@ async def show_calories(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"Syöty: *{profile['calories']}kcal*\n"
         f"Jäljellä: *{profile['calorie_goal'] - profile['calories']}kcal*\n"
-        f"Proteiini: *{profile['protein']}g*", 
+        f"Proteiini: *{profile['protein']}g*\n\n"
+        f"Kalori KA: *{profile['month_avg_c']}kcal*\n"
+        f"Proteiini KA: *{profile['month_avg_p']}g*", 
         parse_mode="Markdown"
     )
 

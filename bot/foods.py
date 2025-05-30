@@ -41,8 +41,8 @@ async def get_food(update: Update, context: ContextTypes.DEFAULT_TYPE):
     food_data[food_type][name] = {
         "calories": int(calories),
         "calories_per_100": int(per_100),
-        "protein": int(protein),
-        "protein_per_100": int(protein_per_100)
+        "protein": float(protein),
+        "protein_per_100": float(protein_per_100)
     }
     save_foods()
 
@@ -87,6 +87,7 @@ async def edit_menu_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
     food = context.user_data["active_food"]
 
     buttons = [InlineKeyboardButton(detail.capitalize(), callback_data=f"editdetail_{detail}") for i, detail in enumerate(food_data[type][food])]
+    buttons.append(InlineKeyboardButton("Name", callback_data="editdetail_name"))
     buttons.append(InlineKeyboardButton("❌Peruuta", callback_data="editdetail_cancel"))
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
@@ -126,22 +127,30 @@ async def edit_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def edit_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        new_value = int(update.message.text.strip())
-        if new_value <= 0:
-            raise ValueError("Arvo ei voi olla nolla tai negatiivinen.")
-        
         type = context.user_data["active_food_type"]
         food = context.user_data["active_food"]
         detail = context.user_data["active_detail"]
 
+        if detail == "name":
+            new_value = str(update.message.text.strip())
+            old_value = food
+            food_data[type][new_value] = food_data[type].pop(old_value)
+            save_foods()
+            await update.message.reply_text(f"{food.capitalize()} | {detail}: {old_value} -> {new_value}")
+            return ConversationHandler.END
+        elif detail == "protein" or detail == "protein_per_100":
+            new_value = round(float(update.message.text.strip()), 1)
+            text = "g"
+        else:
+            new_value = int(update.message.text.strip())
+            text = "kcal"
+        
+        if new_value <= 0:
+            raise ValueError("Arvo ei voi olla nolla tai negatiivinen.")
+
         old_value = food_data[type][food][detail]
         food_data[type][food][detail] = new_value
         save_foods()
-
-        if detail == "protein" or detail == "protein_per_100":
-            text = "g"
-        else:
-            text = "kcal"
 
         await update.message.reply_text(f"{food.capitalize()} | {detail}: {old_value}{text} -> {new_value}{text}")
         return ConversationHandler.END
@@ -150,6 +159,7 @@ async def edit_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Virheellinen syöte. {e}")
         else:
             await update.message.reply_text(f"Virheellinen syöte. Kirjoita uusi arvo:")
+        return EDIT_DETAIL
 
 # Show all available foods
 async def food_list(update: Update, context: ContextTypes.DEFAULT_TYPE):

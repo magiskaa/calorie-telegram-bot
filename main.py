@@ -2,11 +2,13 @@ import html
 import json
 import logging
 import traceback
+from datetime import datetime, time
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, ConversationHandler, CallbackQueryHandler, filters
 from config.config import BOT_TOKEN, ADMIN_ID
 from bot.save_and_load import save, user_data
+from bot.job_queue import daily_reset
 from bot.calorie_tracking import (
     get_type_menu, type_button_handler, food_button_handler, add_per_100, per_100_button_handler, get_per_100, show_calories, 
     set_goal, get_goal, add_custom_amount, get_custom_amount, GET_GOAL, GET_INPUT, GET_PER_100
@@ -32,6 +34,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[user_id] = {
         "name": update.message.from_user.first_name,
         "calories": 0,
+        "calorie_goal": 2500,
+        "protein": 0,
+        "month_avg_c": 0,
+        "month_avg_p": 0,
         "foods": []
     }
     save()
@@ -135,6 +141,8 @@ def main():
         )
         app.add_handler(add_per_100_conv_handler)
 
+        job_queue = app.job_queue
+        job_queue.run_daily(daily_reset, time(hour=2, minute=0))
 
         app.add_error_handler(error_handler)
 
